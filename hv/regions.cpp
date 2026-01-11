@@ -1,4 +1,5 @@
 #include "regions.h"
+
 paradigm::regs* regions = nullptr;
 
 auto paradigm::regs::allocate_vmx_reg(vcpu* vcpu) -> bool
@@ -7,20 +8,20 @@ auto paradigm::regs::allocate_vmx_reg(vcpu* vcpu) -> bool
 	PHYSICAL_ADDRESS max{};
 	max.QuadPart = MAXULONG64;
 
-	auto alloc = [&]() -> bool
-	{
-		return (vcpu->vmxon_reg = reinterpret_cast<uint64_t>(MmAllocateContiguousMemory(0x1000, max)))
-			? (RtlZeroMemory(reinterpret_cast<void*>(vcpu->vmxon_reg), 0x1000),
-				vmx_basic.flags = __readmsr(IA32_VMX_BASIC),
-				*reinterpret_cast<uint32_t*>(vcpu->vmxon_reg) = vmx_basic.vmcs_revision_id,
-				vcpu->phys_vmxon_reg = util->virt_to_phys(reinterpret_cast<void*>(vcpu->vmxon_reg)),
-				true)
-			: false;
-	};
+	void* va = MmAllocateContiguousMemory(vmxon_sz, max);
+	if (!va)
+		return false;
 
-	return alloc();
+	RtlZeroMemory(va, vmxon_sz);
+
+	vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
+	*reinterpret_cast<uint32_t*>(va) = vmx_basic.vmcs_revision_id;
+
+	vcpu->vmxon_reg = reinterpret_cast<uint64_t>(va);
+	vcpu->phys_vmxon_reg = util->virt_to_phys(va);
+
+	return vcpu->phys_vmxon_reg != 0;
 }
-
 
 auto paradigm::regs::allocate_vmcs_reg(vcpu* vcpu) -> bool
 {
@@ -28,21 +29,28 @@ auto paradigm::regs::allocate_vmcs_reg(vcpu* vcpu) -> bool
 	PHYSICAL_ADDRESS max{};
 	max.QuadPart = MAXULONG64;
 
-	auto alloc = [&]() -> bool
-	{
-		return (vcpu->vmcs_reg = reinterpret_cast<uint64_t>(MmAllocateContiguousMemory(0x1000, max)))
-			? (RtlZeroMemory(reinterpret_cast<void*>(vcpu->vmcs_reg), 0x1000),
-				vmx_basic.flags = __readmsr(IA32_VMX_BASIC),
-				*reinterpret_cast<uint32_t*>(vcpu->vmcs_reg) = vmx_basic.vmcs_revision_id,
-				vcpu->phys_vmcs_reg = util->virt_to_phys(reinterpret_cast<void*>(vcpu->vmcs_reg)),
-				true)
-			: false;
-	};
+	void* va = MmAllocateContiguousMemory(vmxon_sz, max);
+	if (!va)
+		return false;
 
-	return alloc();
+	RtlZeroMemory(va, vmxon_sz);
+
+	vmx_basic.flags = __readmsr(IA32_VMX_BASIC);
+	*reinterpret_cast<uint32_t*>(va) = vmx_basic.vmcs_revision_id;
+
+	vcpu->vmcs_reg = reinterpret_cast<uint64_t>(va);
+	vcpu->phys_vmcs_reg = util->virt_to_phys(va);
+
+	return vcpu->phys_vmcs_reg != 0;
 }
 
 auto paradigm::regs::allocate_regions(vcpu* vcpu) -> bool
 {
-	return !allocate_vmx_reg(vcpu) || !allocate_vmcs_reg(vcpu) ? false : true;
+	if (!allocate_vmx_reg(vcpu))
+		return false;
+
+	if (!allocate_vmcs_reg(vcpu))
+		return false;
+
+	return true;
 }
