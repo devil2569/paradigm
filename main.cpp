@@ -19,7 +19,7 @@ auto driver_entry(PDRIVER_OBJECT drv, PUNICODE_STRING) -> NTSTATUS
 	drv->DriverUnload = reinterpret_cast<PDRIVER_UNLOAD>(driver_unload);
 
 	hv = reinterpret_cast<hypervisor*>(ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(hypervisor), 'hv'));
-	if (!hv) return STATUS_INSUFFICIENT_RESOURCES;
+	!hv ? STATUS_INSUFFICIENT_RESOURCES : STATUS_SUCCESS;
 
 	RtlZeroMemory(hv, sizeof(hypervisor));
 
@@ -43,4 +43,5 @@ auto driver_entry(PDRIVER_OBJECT drv, PUNICODE_STRING) -> NTSTATUS
 	}
 
 	return STATUS_SUCCESS;
+
 }
