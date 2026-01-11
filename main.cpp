@@ -5,7 +5,7 @@ hypervisor* hv = { 0 };
 
 auto driver_unload() -> void
 {
-	DbgPrint("unloaded");
+	DbgPrint("unloaded\n");
 	if (hv)
 	{
 		if (hv->vcpus) ExFreePool(hv->vcpus);
@@ -13,9 +13,9 @@ auto driver_unload() -> void
 	}
 }
 
-auto driver_entry(PDRIVER_OBJECT drv, PUNICODE_STRING) -> NTSTATUS
+auto driver_entry( PDRIVER_OBJECT drv, PUNICODE_STRING ) -> NTSTATUS
 {
-	DbgPrint("entered paradigm");
+	DbgPrint("entered paradigm\n");
 	drv->DriverUnload = reinterpret_cast<PDRIVER_UNLOAD>(driver_unload);
 
 	hv = reinterpret_cast<hypervisor*>(ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(hypervisor), 'hv'));
@@ -39,7 +39,9 @@ auto driver_entry(PDRIVER_OBJECT drv, PUNICODE_STRING) -> NTSTATUS
 		KeSetSystemAffinityThread(affinity_mask);
 
 		vmx->start(&hv->vcpus[i]);
-		DbgPrint("launched on: [%d]", (int)i);
+		DbgPrint("launched on: [%d]\n", (int)i);
+		DbgPrint("vmx reg: [0x%p]\n", (PVOID64)hv->vcpus[i].vmxon_reg);
+		DbgPrint("vmcs reg: [0x%p]\n", (PVOID64)hv->vcpus[i].vmcs_reg);
 	}
 
 	return STATUS_SUCCESS;
