@@ -1,3 +1,7 @@
+#include "vmx.h"
+
+paradigm::vmx* vmx = nullptr;
+
 auto paradigm::vmx::detect_vmx_support() -> bool
 {
 	int regs[4];
@@ -22,4 +26,53 @@ auto paradigm::vmx::detect_vmx_support() -> bool
 	}
 
 	return feature_ctrl.enable_vmx_outside_smx != 0;
+}
+
+auto paradigm::vmx::adjust_cr0() -> cr0
+{
+	cr0 new_cr0{};
+	cr0 fixed0_cr0{};
+	cr0 fixed1_cr0{};
+
+	new_cr0.flags = __readcr0();
+
+	fixed0_cr0.flags = __readmsr(IA32_VMX_CR0_FIXED0);
+	fixed1_cr0.flags = __readmsr(IA32_VMX_CR0_FIXED1);
+
+	new_cr0.flags = (new_cr0.flags & fixed1_cr0.flags) | fixed0_cr0.flags;
+
+	__writecr0(new_cr0.flags);
+	return new_cr0;
+}
+
+auto paradigm::vmx::adjust_cr4() -> cr4
+{
+	cr4 new_cr4{};
+	cr4 fixed0_cr4{};
+	cr4 fixed1_cr4{};
+
+	new_cr4.flags = __readcr4();
+
+	fixed0_cr4.flags = __readmsr(IA32_VMX_CR4_FIXED0);
+	fixed1_cr4.flags = __readmsr(IA32_VMX_CR4_FIXED1);
+
+	new_cr4.flags = (new_cr4.flags & fixed1_cr4.flags) | fixed0_cr4.flags;
+
+	__writecr4(new_cr4.flags);
+	return new_cr4;
+}
+
+auto paradigm::vmx::start(vcpu* vcpu) -> bool
+{
+	if (!detect_vmx_support()) return false;
+
+	adjust_cr0();
+	adjust_cr4();
+
+	if (!regions->allocate_regions(vcpu)) return false;
+
+	if (__vmx_on(&vcpu->phys_vmxon_reg)) return false;
+	if (__vmx_vmptrld(&vcpu->vmcs_reg)) return false;
+
+	return true;
 }
