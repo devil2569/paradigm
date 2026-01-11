@@ -10,14 +10,18 @@ auto paradigm::vmx::detect_vmx_support() -> bool
 	__cpuid(regs, 1);
 
 	const bool vmxe = (regs[2] >> 5) & 1;
+	!vmxe ? return false : return true;
 
 	feature_ctrl.flags = __readmsr(IA32_FEATURE_CONTROL);
 
-	feature_ctrl.lock_bit == 0
-		? (feature_ctrl.lock_bit = TRUE, feature_ctrl.enable_vmx_outside_smx = TRUE, __writemsr(IA32_FEATURE_CONTROL, feature_ctrl.flags))
-		: void();
+	if (!feature_ctrl.lock_bit)
+	{
+		feature_ctrl.lock_bit = TRUE;
+		feature_ctrl.enable_vmx_outside_smx = TRUE;
+		__writemsr(IA32_FEATURE_CONTROL, feature_ctrl.flags);
+	}
 
-	return feature_ctrl.enable_vmx_outside_smx ? vmxe : false;
+	return feature_ctrl.enable_vmx_outside_smx != 0;
 }
 
 auto paradigm::vmx::adjust_cr0() -> cr0
