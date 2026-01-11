@@ -10,7 +10,7 @@ auto paradigm::vmx::detect_vmx_support() -> bool
 	__cpuid(regs, 1);
 
 	const bool vmxe = (regs[2] >> 5) & 1;
-	!vmxe ? return false : return true;
+	!vmxe ? false : true;
 
 	feature_ctrl.flags = __readmsr(IA32_FEATURE_CONTROL);
 
