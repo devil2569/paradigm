@@ -1,4 +1,5 @@
 #include "regions.h"
+paradigm::regs* regions = nullptr;
 
 auto paradigm::regs::allocate_vmx_reg(vcpu* vcpu) -> bool
 {
