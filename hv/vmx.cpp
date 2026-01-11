@@ -54,7 +54,7 @@ auto paradigm::vmx::adjust_cr4() -> cr4
 	return new_cr4;
 }
 
-auto paradigm::vmx::start(vcpu* vcpu) -> void
+auto paradigm::vmx::start(vcpu* vcpu) -> bool
 {
 	!detect_vmx_support() ? false : true;
 
