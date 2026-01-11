@@ -61,12 +61,15 @@ auto paradigm::vmx::adjust_cr4() -> cr4
 
 auto paradigm::vmx::start(vcpu* vcpu) -> bool
 {
-	!detect_vmx_support() ? false : true;
+	if (!detect_vmx_support()) return false;
 
 	adjust_cr0();
 	adjust_cr4();
 
-	!regions->allocate_regions(vcpu) ? false : true;
-	__vmx_on(&vcpu->phys_vmxon_reg);
-	__vmx_vmptrld(&vcpu->vmcs_reg);
+	if (!regions->allocate_regions(vcpu)) return false;
+
+	if (__vmx_on(&vcpu->phys_vmxon_reg)) return false;
+	if (__vmx_vmptrld(&vcpu->vmcs_reg)) return false;
+
+	return true;
 }
