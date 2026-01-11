@@ -2,6 +2,8 @@
 #include <intrin.h>
 #include <cstdint>
 
+constexpr int vmxon_sz = 0x1000;
+
 typedef struct vcpu
 {
 	uint64_t vmxon_reg;
