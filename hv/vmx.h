@@ -17,7 +17,7 @@ namespace paradigm
 
 		auto adjust_cr4() -> cr4;
 
-		auto start(vcpu* vcpu) -> void;
+		auto start(vcpu* vcpu) -> bool;
 	};
 }
 
