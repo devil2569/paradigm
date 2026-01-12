@@ -153,7 +153,7 @@ auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 	__vmx_vmwrite(VMCS_HOST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
 	__vmx_vmwrite(VMCS_HOST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
 
-	DbgPrint("done writing host vmcs fields..");
+	DbgPrint("done writing host vmcs fields..\n");
 
 	__vmx_vmwrite(VMCS_GUEST_CR0, __readcr0());
 	__vmx_vmwrite(VMCS_GUEST_CR3, __readcr3());
@@ -217,7 +217,7 @@ auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 	__vmx_vmwrite(VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS, cpu_secondary_ctrls.flags);
 	__vmx_vmwrite(VMCS_CTRL_VMENTRY_CONTROLS, entry_ctls.flags);
 	__vmx_vmwrite(0x0000400C, exit_ctrls.flags);    
-
-	DbgPrint("done configuring vmcs, executing vmlaunch");
+ DbgPrint("done writing guest vmcs fields..\n");
+	DbgPrint("done configuring vmcs, executing vmlaunch\n");
 	return true;
 }
