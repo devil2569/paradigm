@@ -14,6 +14,8 @@ namespace paradigm
 
 		auto allocate_vmcs_reg(vcpu* vcpu) -> bool;
 
+		auto allocate_vmm_stack(vcpu* vcpu) -> bool;
+
 		auto allocate_regions(vcpu* vcpu) -> bool;
 	};
 }
