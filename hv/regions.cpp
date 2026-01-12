@@ -44,12 +44,24 @@ auto paradigm::regs::allocate_vmcs_reg(vcpu* vcpu) -> bool
 	return vcpu->phys_vmcs_reg != 0;
 }
 
+auto paradigm::regs::allocate_vmm_stack(vcpu* vcpu)->bool
+{
+	vcpu->vmm_stack = reinterpret_cast<uint64_t>(ExAllocatePool2(POOL_FLAG_NON_PAGED, vmm_sz, (ULONG)'hv'));
+	if (!vcpu->vmm_stack) return false;
+
+	RtlZeroMemory(reinterpret_cast<PVOID>(vcpu->vmm_stack), vmm_sz);
+	return true;
+}
+
 auto paradigm::regs::allocate_regions(vcpu* vcpu) -> bool
 {
 	if (!allocate_vmx_reg(vcpu))
 		return false;
 
 	if (!allocate_vmcs_reg(vcpu))
+		return false;
+
+	if (!allocate_vmm_stack(vcpu))
 		return false;
 
 	return true;
