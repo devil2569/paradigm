@@ -13,8 +13,8 @@ auto paradigm::vmx::detect_vmx_support() -> bool
 	if (!data)
 		return false;
 
-	if ((__readcr4() & (1ull << 13)) != 0)
-		return false;
+	if ((__readcr4() & (1ull << 13)) == 0)
+		__writecr4(__readcr4() | (1ull << 13));
 
 	feature_ctrl.flags = __readmsr(IA32_FEATURE_CONTROL);
 
@@ -64,15 +64,20 @@ auto paradigm::vmx::adjust_cr4() -> cr4
 
 auto paradigm::vmx::start(vcpu* vcpu) -> bool
 {
-	if (!detect_vmx_support()) return false;
+	if (!detect_vmx_support())
+		return false;
 
 	adjust_cr0();
 	adjust_cr4();
 
-	if (!regions->allocate_regions(vcpu)) return false;
+	if (!regions->allocate_regions(vcpu))
+		return false;
 
-	if (__vmx_on(&vcpu->phys_vmxon_reg)) return false;
-	if (__vmx_vmptrld(&vcpu->vmcs_reg)) return false;
+	if (__vmx_on(&vcpu->phys_vmxon_reg))
+		return false;
+
+	if (__vmx_vmptrld(&vcpu->phys_vmcs_reg))
+		return false;
 
 	return true;
 }
