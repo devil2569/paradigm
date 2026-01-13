@@ -1,7 +1,9 @@
 #include "vmcs.h"
 #include <cstdint>
 
-paradigm::vmcs* vmcs = nullptr;
+paradigm::vmcs* vmcs_ptr = nullptr;
+extern "C" uint64_t guest_rsp = 0;
+extern "C" uint64_t guest_rip = 0;
 
 auto paradigm::vmcs::clear_vmcs(vcpu* vcpu) -> bool
 {
@@ -127,8 +129,7 @@ auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 	__vmx_vmwrite(VMCS_HOST_CR4, cr4);
 
 	__vmx_vmwrite(VMCS_HOST_RSP, vcpu->vmm_stack + vmm_sz);
-	// temporary, will write vm exit stub l8r
-	__vmx_vmwrite(VMCS_HOST_RIP, 0);
+	__vmx_vmwrite(VMCS_HOST_RIP, reinterpret_cast<size_t>(asm_vmexit_stub));
 
 	__vmx_vmwrite(VMCS_HOST_CS_SELECTOR, get_cs().flags & 0xf8);
 	__vmx_vmwrite(VMCS_HOST_SS_SELECTOR, get_ss().flags & 0xf8);
@@ -153,7 +154,7 @@ auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 	__vmx_vmwrite(VMCS_HOST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
 	__vmx_vmwrite(VMCS_HOST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
 
-	DbgPrint("done writing host vmcs fields..\n");
+	DbgPrint("done writing host vmcs fields..");
 
 	__vmx_vmwrite(VMCS_GUEST_CR0, __readcr0());
 	__vmx_vmwrite(VMCS_GUEST_CR3, __readcr3());
@@ -217,7 +218,8 @@ auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 	__vmx_vmwrite(VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS, cpu_secondary_ctrls.flags);
 	__vmx_vmwrite(VMCS_CTRL_VMENTRY_CONTROLS, entry_ctls.flags);
 	__vmx_vmwrite(0x0000400C, exit_ctrls.flags);    
- DbgPrint("done writing guest vmcs fields..\n");
-	DbgPrint("done configuring vmcs, executing vmlaunch\n");
+
+	DbgPrint("done configuring vmcs, executing vmlaunch");
+	vmlaunch_asm();
 	return true;
 }
