@@ -1,0 +1,148 @@
+PUBLIC asm_vmexit_stub
+PUBLIC vmlaunch_asm
+
+extern exit_handler:PROC
+extern vmresume_func:PROC
+
+extern guest_rsp:QWORD   
+extern guest_rip:QWORD   
+
+.code
+
+save_gprs macro
+
+        push    rax
+        push    rcx
+        push    rdx
+        push    rbx
+        push    rbp
+        push    rsi
+        push    rdi
+        push    r8
+        push    r9
+        push    r10
+        push    r11
+        push    r12
+        push    r13
+        push    r14
+        push    r15
+endm
+
+restore_gprs macro
+        pop     r15
+        pop     r14
+        pop     r13
+        pop     r12
+        pop     r11
+        pop     r10
+        pop     r9
+        pop     r8
+        pop     rdi
+        pop     rsi
+        pop     rbp
+        pop     rbx
+        pop     rdx
+        pop     rcx
+        pop     rax
+endm
+
+vmlaunch_asm proc
+    mov rax, 681Ch
+    vmwrite rax, rsp
+
+    mov rax, 681Eh
+    mov rdx, successful_launch
+    vmwrite rax, rdx
+
+    vmlaunch
+
+    xor al, al
+    ret
+  
+successful_launch:
+    mov al, 1
+vmlaunch_asm endp
+
+vmxoff_handler proc
+    
+    vmxoff 
+
+    movups xmm0, [rsp]
+	movups xmm1, [rsp + 010h]
+	movups xmm2, [rsp + 020h]
+	movups xmm3, [rsp + 030h]
+	movups xmm4, [rsp + 040h]
+	movups xmm5, [rsp + 050h]
+	movups xmm6, [rsp + 060h]
+	movups xmm7, [rsp + 070h]
+	movups xmm8, [rsp + 080h]
+	movups xmm9, [rsp + 090h]
+	movups xmm10, [rsp + 0A0h]
+	movups xmm11, [rsp + 0B0h]
+	movups xmm12, [rsp + 0C0h]
+	movups xmm13, [rsp + 0D0h]
+	movups xmm14, [rsp + 0E0h]
+	movups xmm15, [rsp + 0F0h]
+	add rsp, 0108h
+
+
+    restore_gprs
+
+    mov rsp, guest_rsp
+
+    jmp guest_rip
+vmxoff_handler endp
+
+asm_vmexit_stub proc
+    save_gprs
+    	
+    sub rsp, 0108h 
+
+	movaps [rsp], xmm0
+	movaps [rsp + 010h], xmm1
+	movaps [rsp + 020h], xmm2
+	movaps [rsp + 030h], xmm3
+	movaps [rsp + 040h], xmm4
+	movaps [rsp + 050h], xmm5
+	movaps [rsp + 060h], xmm6
+	movaps [rsp + 070h], xmm7
+	movaps [rsp + 080h], xmm8
+	movaps [rsp + 090h], xmm9
+	movaps [rsp + 0A0h], xmm10
+	movaps [rsp + 0B0h], xmm11
+	movaps [rsp + 0C0h], xmm12
+	movaps [rsp + 0D0h], xmm13
+	movaps [rsp + 0E0h], xmm14
+	movaps [rsp + 0F0h], xmm15
+
+    mov rcx, rsp
+	sub rsp, 20h
+	call exit_handler
+	add rsp, 20h
+    cmp al, 1
+    je vmxoff_handler
+
+	movups xmm0, [rsp]
+	movups xmm1, [rsp + 010h]
+	movups xmm2, [rsp + 020h]
+	movups xmm3, [rsp + 030h]
+	movups xmm4, [rsp + 040h]
+	movups xmm5, [rsp + 050h]
+	movups xmm6, [rsp + 060h]
+	movups xmm7, [rsp + 070h]
+	movups xmm8, [rsp + 080h]
+	movups xmm9, [rsp + 090h]
+	movups xmm10, [rsp + 0A0h]
+	movups xmm11, [rsp + 0B0h]
+	movups xmm12, [rsp + 0C0h]
+	movups xmm13, [rsp + 0D0h]
+	movups xmm14, [rsp + 0E0h]
+	movups xmm15, [rsp + 0F0h]
+	add rsp, 0108h
+
+	restore_gprs
+
+	jmp vmresume_func
+asm_vmexit_stub endp
+
+end
