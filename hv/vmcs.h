@@ -31,4 +31,4 @@ namespace paradigm
 	};
 }
 
-extern paradigm::vmcs* vmcs;
+extern paradigm::vmcs* vmcs_ptr;
