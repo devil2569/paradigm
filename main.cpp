@@ -37,7 +37,7 @@ auto driver_entry(PDRIVER_OBJECT drv, PUNICODE_STRING) -> NTSTATUS
         KeSetSystemAffinityThread(1ull << i);
 
         vmx->start(&hv->vcpus[i]);
-        vmcs->setup_vmcs(&hv->vcpus[i]);
+        vmcs_ptr->setup_vmcs(&hv->vcpus[i]);
 
         DbgPrint("launched on: [%d]\n", (int)i);
         DbgPrint("vmx reg: [0x%p]\n", (PVOID64)hv->vcpus[i].vmxon_reg);
