@@ -45,8 +45,8 @@ namespace paradigm
 
 		inline unsigned __int32 access_right(unsigned __int16 segment_selector)
 		{
-			__segment_selector_t selector;
-			__segment_access_rights_t vmx_access_rights;
+			hv_segment_selector selector;
+			hv_segment_access_rights vmx_access_rights;
 
 			selector.flags = segment_selector;
 
