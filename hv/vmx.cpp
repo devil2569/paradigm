@@ -1,4 +1,5 @@
 #include "vmx.h"
+#include "vmwrappers.h"
 
 paradigm::vmx* vmx = nullptr;
 
@@ -73,11 +74,28 @@ auto paradigm::vmx::start(vcpu* vcpu) -> bool
 	if (!regions->allocate_regions(vcpu))
 		return false;
 
-	if (__vmx_on(&vcpu->phys_vmxon_reg))
+	if (vmxon(vcpu->phys_vmxon_reg))
 		return false;
 
-	if (__vmx_vmptrld(&vcpu->phys_vmcs_reg))
+	if (vmptrld(vcpu->phys_vmcs_reg))
 		return false;
 
 	return true;
+}
+
+auto paradigm::vmx::increment_guest_ip() -> void
+{
+	auto const old_rip = vmread(VMCS_GUEST_RIP);
+	auto new_rip = old_rip + vmread(VMCS_VMEXIT_INSTRUCTION_LENGTH);
+
+	if (old_rip < (1ull << 32) && new_rip >= (1ull << 32))
+	{
+		vmx_segment_access_rights cs_access_rights;
+
+		cs_access_rights.flags = static_cast<uint32_t>(vmread(VMCS_GUEST_CS_ACCESS_RIGHTS));
+
+		// checking for long mode bcs guest will sometimes unintentionally disable it so this check makes it so that we increment EIP properly.
+		if (!cs_access_rights.long_mode) new_rip &= 0xFFFF'FFFF;
+	}
+	vmwrite(VMCS_GUEST_RIP, new_rip);
 }
