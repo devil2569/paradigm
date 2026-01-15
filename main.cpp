@@ -32,7 +32,7 @@ auto driver_entry(PDRIVER_OBJECT drv, PUNICODE_STRING) -> NTSTATUS
 
     RtlZeroMemory(hv->vcpus, array_sz);
 
-    for (uint64_t i = 0; i < hv->vcpu_count; i++)
+    for (auto i{ 0 }; i < hv->vcpu_count; i++)
     {
         KeSetSystemAffinityThread(1ull << i);
 
