@@ -113,6 +113,7 @@ auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 	exit_ctrls.host_address_space_size = 1;
 	adjust_exit_ctrls(&exit_ctrls, basic_msr);
 
+	/*
 	uint64_t cr0 = __readcr0();
 	uint64_t cr4 = __readcr4();
 
@@ -125,10 +126,10 @@ auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 	cr0 &= cr0_fixed1;
 	cr4 |= cr4_fixed0;
 	cr4 &= cr4_fixed1;
-
-	vmwrite(VMCS_HOST_CR0, cr0);
+	*/
+	vmwrite(VMCS_HOST_CR0, __readcr0());
 	vmwrite(VMCS_HOST_CR3, __readcr3());
-	vmwrite(VMCS_HOST_CR4, cr4);
+	vmwrite(VMCS_HOST_CR4, __readcr4());
 
 	vmwrite(VMCS_HOST_RSP, vcpu->vmm_stack + vmm_sz);
 	vmwrite(VMCS_HOST_RIP, reinterpret_cast<size_t>(asm_vmexit_stub));
