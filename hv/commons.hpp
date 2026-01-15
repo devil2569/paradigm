@@ -90,8 +90,8 @@ typedef struct _guest_registers
     uint64_t rax;
 } guest_registers, * pguest_registers;
 
-
 extern "C" unsigned __int32 __load_ar(unsigned __int16 segment_selector);
+
 extern "C" segment_selector get_cs(void);
 extern "C" segment_selector get_ds(void);
 extern "C" segment_selector get_es(void);
