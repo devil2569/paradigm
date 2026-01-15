@@ -8,7 +8,7 @@
 
 namespace paradigm
 {
-	class vmx final
+	class vmx
 	{
 	public:
 		auto detect_vmx_support() -> bool;
@@ -16,6 +16,8 @@ namespace paradigm
 		auto adjust_cr0() -> cr0;
 
 		auto adjust_cr4() -> cr4;
+
+		auto increment_guest_ip() -> void;
 
 		auto start(vcpu* vcpu) -> bool;
 	};
