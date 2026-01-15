@@ -7,5 +7,8 @@ extern "C" auto exit_handler(pguest_registers trap_frame) -> uint64_t
 	{
 	case VMX_EXIT_REASON_EXECUTE_HLT:
 		vmexit->handle_hlt();
+		break;
+	default:
+		break;
 	}
 }
