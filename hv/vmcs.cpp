@@ -1,5 +1,6 @@
 #include "vmcs.h"
 #include <cstdint>
+#include "vmwrappers.h"
 
 paradigm::vmcs* vmcs_ptr = nullptr;
 extern "C" uint64_t guest_rsp = 0;
@@ -7,7 +8,7 @@ extern "C" uint64_t guest_rip = 0;
 
 auto paradigm::vmcs::clear_vmcs(vcpu* vcpu) -> bool
 {
-	int stat = __vmx_vmclear(&vcpu->phys_vmcs_reg);
+	int stat = vmclear(vcpu->phys_vmcs_reg);
 	if (stat) return false;
 
 	return true;
@@ -15,7 +16,7 @@ auto paradigm::vmcs::clear_vmcs(vcpu* vcpu) -> bool
 
 auto paradigm::vmcs::load_vmcs(vcpu* vcpu) -> bool
 {
-	int stat = __vmx_vmptrld(&vcpu->phys_vmcs_reg);
+	int stat = vmptrld(vcpu->phys_vmcs_reg);
 	if (stat) return false;
 
 	return true;
@@ -85,6 +86,7 @@ auto paradigm::vmcs::adjust_cpu_secondary_based_ctrls(ia32_vmx_procbased_ctls2_r
 	req_ctls->flags = adjust_ctrl_value(capability_msr, req_ctls->flags);;
 }
 
+
 auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 {
 	if (!clear_vmcs(vcpu)) return false;
@@ -124,102 +126,109 @@ auto paradigm::vmcs::setup_vmcs(vcpu* vcpu) -> bool
 	cr4 |= cr4_fixed0;
 	cr4 &= cr4_fixed1;
 
-	__vmx_vmwrite(VMCS_HOST_CR0, cr0);
-	__vmx_vmwrite(VMCS_HOST_CR3, __readcr3());
-	__vmx_vmwrite(VMCS_HOST_CR4, cr4);
+	vmwrite(VMCS_HOST_CR0, cr0);
+	vmwrite(VMCS_HOST_CR3, __readcr3());
+	vmwrite(VMCS_HOST_CR4, cr4);
 
-	__vmx_vmwrite(VMCS_HOST_RSP, vcpu->vmm_stack + vmm_sz);
-	__vmx_vmwrite(VMCS_HOST_RIP, reinterpret_cast<size_t>(asm_vmexit_stub));
+	vmwrite(VMCS_HOST_RSP, vcpu->vmm_stack + vmm_sz);
+	vmwrite(VMCS_HOST_RIP, reinterpret_cast<size_t>(asm_vmexit_stub));
 
-	__vmx_vmwrite(VMCS_HOST_CS_SELECTOR, get_cs().flags & 0xf8);
-	__vmx_vmwrite(VMCS_HOST_SS_SELECTOR, get_ss().flags & 0xf8);
-	__vmx_vmwrite(VMCS_HOST_DS_SELECTOR, get_ds().flags & 0xf8);
-	__vmx_vmwrite(VMCS_HOST_ES_SELECTOR, get_es().flags & 0xf8);
-	__vmx_vmwrite(VMCS_HOST_FS_SELECTOR, get_fs().flags & 0xf8);
-	__vmx_vmwrite(VMCS_HOST_GS_SELECTOR, get_gs().flags & 0xf8);
-	__vmx_vmwrite(VMCS_HOST_TR_SELECTOR, get_tr().flags & 0xf8);
+	vmwrite(VMCS_HOST_CS_SELECTOR, get_cs().flags & 0xf8);
+	vmwrite(VMCS_HOST_SS_SELECTOR, get_ss().flags & 0xf8);
+	vmwrite(VMCS_HOST_DS_SELECTOR, get_ds().flags & 0xf8);
+	vmwrite(VMCS_HOST_ES_SELECTOR, get_es().flags & 0xf8);
+	vmwrite(VMCS_HOST_FS_SELECTOR, get_fs().flags & 0xf8);
+	vmwrite(VMCS_HOST_GS_SELECTOR, get_gs().flags & 0xf8);
+	vmwrite(VMCS_HOST_TR_SELECTOR, get_tr().flags & 0xf8);
 
 	segment_descriptor_register_64 gdtr, idtr;
 	_sgdt(&gdtr);
 	__sidt(&idtr);
 
-	__vmx_vmwrite(VMCS_HOST_FS_BASE, __readmsr(IA32_FS_BASE));
-	__vmx_vmwrite(VMCS_HOST_GS_BASE, __readmsr(IA32_GS_BASE));
-	__vmx_vmwrite(VMCS_HOST_TR_BASE, util->segment_base(gdtr, get_tr()));
+	vmwrite(VMCS_HOST_FS_BASE, __readmsr(IA32_FS_BASE));
+	vmwrite(VMCS_HOST_GS_BASE, __readmsr(IA32_GS_BASE));
+	vmwrite(VMCS_HOST_TR_BASE, util->segment_base(gdtr, get_tr()));
 
-	__vmx_vmwrite(VMCS_HOST_GDTR_BASE, gdtr.base_address);
-	__vmx_vmwrite(VMCS_HOST_IDTR_BASE, idtr.base_address);
+	vmwrite(VMCS_HOST_GDTR_BASE, gdtr.base_address);
+	vmwrite(VMCS_HOST_IDTR_BASE, idtr.base_address);
 
-	__vmx_vmwrite(VMCS_HOST_SYSENTER_CS, __readmsr(IA32_SYSENTER_CS));
-	__vmx_vmwrite(VMCS_HOST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
-	__vmx_vmwrite(VMCS_HOST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
+	vmwrite(VMCS_HOST_SYSENTER_CS, __readmsr(IA32_SYSENTER_CS));
+	vmwrite(VMCS_HOST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
+	vmwrite(VMCS_HOST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
 
 	DbgPrint("done writing host vmcs fields..");
 
-	__vmx_vmwrite(VMCS_GUEST_CR0, __readcr0());
-	__vmx_vmwrite(VMCS_GUEST_CR3, __readcr3());
-	__vmx_vmwrite(VMCS_GUEST_CR4, __readcr4());
+	vmwrite(VMCS_GUEST_CR0, __readcr0());
+	vmwrite(VMCS_GUEST_CR3, __readcr3());
+	vmwrite(VMCS_GUEST_CR4, __readcr4());
 
-	__vmx_vmwrite(VMCS_GUEST_DR7, __readdr(7));
+	vmwrite(VMCS_GUEST_DR7, __readdr(7));
 
-	__vmx_vmwrite(VMCS_GUEST_RSP, 0);
-	__vmx_vmwrite(VMCS_GUEST_RIP, 0);
-	__vmx_vmwrite(VMCS_GUEST_RFLAGS, __readeflags());
+	vmwrite(VMCS_GUEST_RSP, 0);
+	vmwrite(VMCS_GUEST_RIP, 0);
+	vmwrite(VMCS_GUEST_RFLAGS, __readeflags());
 	
-	__vmx_vmwrite(VMCS_GUEST_ES_SELECTOR, get_es().flags);
-	__vmx_vmwrite(VMCS_GUEST_CS_SELECTOR, get_cs().flags);
-	__vmx_vmwrite(VMCS_GUEST_SS_SELECTOR, get_ss().flags);
-	__vmx_vmwrite(VMCS_GUEST_DS_SELECTOR, get_ds().flags);
-	__vmx_vmwrite(VMCS_GUEST_FS_SELECTOR, get_fs().flags);
-	__vmx_vmwrite(VMCS_GUEST_GS_SELECTOR, get_gs().flags);
-	__vmx_vmwrite(VMCS_GUEST_LDTR_SELECTOR, get_ldtr().flags);
-	__vmx_vmwrite(VMCS_GUEST_TR_SELECTOR, get_tr().flags);
+	vmwrite(VMCS_GUEST_ES_SELECTOR, get_es().flags);
+	vmwrite(VMCS_GUEST_CS_SELECTOR, get_cs().flags);
+	vmwrite(VMCS_GUEST_SS_SELECTOR, get_ss().flags);
+	vmwrite(VMCS_GUEST_DS_SELECTOR, get_ds().flags);
+	vmwrite(VMCS_GUEST_FS_SELECTOR, get_fs().flags);
+	vmwrite(VMCS_GUEST_GS_SELECTOR, get_gs().flags);
+	vmwrite(VMCS_GUEST_LDTR_SELECTOR, get_ldtr().flags);
+	vmwrite(VMCS_GUEST_TR_SELECTOR, get_tr().flags);
 
-	__vmx_vmwrite(VMCS_GUEST_ES_LIMIT, __segmentlimit(get_es().flags));
-	__vmx_vmwrite(VMCS_GUEST_CS_LIMIT, __segmentlimit(get_cs().flags));
-	__vmx_vmwrite(VMCS_GUEST_SS_LIMIT, __segmentlimit(get_ss().flags));
-	__vmx_vmwrite(VMCS_GUEST_DS_LIMIT, __segmentlimit(get_ds().flags));
-	__vmx_vmwrite(VMCS_GUEST_FS_LIMIT, __segmentlimit(get_fs().flags));
-	__vmx_vmwrite(VMCS_GUEST_GS_LIMIT, __segmentlimit(get_gs().flags));
-	__vmx_vmwrite(VMCS_GUEST_LDTR_LIMIT, __segmentlimit(get_ldtr().flags));
-	__vmx_vmwrite(VMCS_GUEST_TR_LIMIT, __segmentlimit(get_tr().flags));
-	__vmx_vmwrite(VMCS_GUEST_GDTR_LIMIT, gdtr.limit);
-	__vmx_vmwrite(VMCS_GUEST_IDTR_LIMIT, idtr.limit);
+	vmwrite(VMCS_GUEST_ES_LIMIT, __segmentlimit(get_es().flags));
+	vmwrite(VMCS_GUEST_CS_LIMIT, __segmentlimit(get_cs().flags));
+	vmwrite(VMCS_GUEST_SS_LIMIT, __segmentlimit(get_ss().flags));
+	vmwrite(VMCS_GUEST_DS_LIMIT, __segmentlimit(get_ds().flags));
+	vmwrite(VMCS_GUEST_FS_LIMIT, __segmentlimit(get_fs().flags));
+	vmwrite(VMCS_GUEST_GS_LIMIT, __segmentlimit(get_gs().flags));
+	vmwrite(VMCS_GUEST_LDTR_LIMIT, __segmentlimit(get_ldtr().flags));
+	vmwrite(VMCS_GUEST_TR_LIMIT, __segmentlimit(get_tr().flags));
+	vmwrite(VMCS_GUEST_GDTR_LIMIT, gdtr.limit);
+	vmwrite(VMCS_GUEST_IDTR_LIMIT, idtr.limit);
 
-	__vmx_vmwrite(VMCS_GUEST_ES_ACCESS_RIGHTS, util->access_right(get_es().flags));
-	__vmx_vmwrite(VMCS_GUEST_CS_ACCESS_RIGHTS, util->access_right(get_cs().flags));
-	__vmx_vmwrite(VMCS_GUEST_SS_ACCESS_RIGHTS, util->access_right(get_ss().flags));
-	__vmx_vmwrite(VMCS_GUEST_DS_ACCESS_RIGHTS, util->access_right(get_ds().flags));
-	__vmx_vmwrite(VMCS_GUEST_FS_ACCESS_RIGHTS, util->access_right(get_fs().flags));
-	__vmx_vmwrite(VMCS_GUEST_GS_ACCESS_RIGHTS, util->access_right(get_gs().flags));
-	__vmx_vmwrite(VMCS_GUEST_LDTR_ACCESS_RIGHTS, util->access_right(get_ldtr().flags));
-	__vmx_vmwrite(VMCS_GUEST_TR_ACCESS_RIGHTS, util->access_right(get_tr().flags));
+	vmwrite(VMCS_GUEST_ES_ACCESS_RIGHTS, util->access_right(get_es().flags));
+	vmwrite(VMCS_GUEST_CS_ACCESS_RIGHTS, util->access_right(get_cs().flags));
+	vmwrite(VMCS_GUEST_SS_ACCESS_RIGHTS, util->access_right(get_ss().flags));
+	vmwrite(VMCS_GUEST_DS_ACCESS_RIGHTS, util->access_right(get_ds().flags));
+	vmwrite(VMCS_GUEST_FS_ACCESS_RIGHTS, util->access_right(get_fs().flags));
+	vmwrite(VMCS_GUEST_GS_ACCESS_RIGHTS, util->access_right(get_gs().flags));
+	vmwrite(VMCS_GUEST_LDTR_ACCESS_RIGHTS, util->access_right(get_ldtr().flags));
+	vmwrite(VMCS_GUEST_TR_ACCESS_RIGHTS, util->access_right(get_tr().flags));
 
-	__vmx_vmwrite(VMCS_GUEST_ES_BASE, util->segment_base(gdtr, get_es()));
-	__vmx_vmwrite(VMCS_GUEST_CS_BASE, util->segment_base(gdtr, get_cs()));
-	__vmx_vmwrite(VMCS_GUEST_SS_BASE, util->segment_base(gdtr, get_ss()));
-	__vmx_vmwrite(VMCS_GUEST_DS_BASE, util->segment_base(gdtr, get_ds()));
-	__vmx_vmwrite(VMCS_GUEST_FS_BASE, __readmsr(IA32_FS_BASE));
-	__vmx_vmwrite(VMCS_GUEST_GS_BASE, __readmsr(IA32_GS_BASE));
-	__vmx_vmwrite(VMCS_GUEST_LDTR_BASE, util->segment_base(gdtr, get_ldtr()));
-	__vmx_vmwrite(VMCS_GUEST_TR_BASE, util->segment_base(gdtr, get_tr()));
-	__vmx_vmwrite(VMCS_GUEST_GDTR_BASE, gdtr.base_address);
-	__vmx_vmwrite(VMCS_GUEST_IDTR_BASE, idtr.base_address);
+	vmwrite(VMCS_GUEST_ES_BASE, util->segment_base(gdtr, get_es()));
+	vmwrite(VMCS_GUEST_CS_BASE, util->segment_base(gdtr, get_cs()));
+	vmwrite(VMCS_GUEST_SS_BASE, util->segment_base(gdtr, get_ss()));
+	vmwrite(VMCS_GUEST_DS_BASE, util->segment_base(gdtr, get_ds()));
+	vmwrite(VMCS_GUEST_FS_BASE, __readmsr(IA32_FS_BASE));
+	vmwrite(VMCS_GUEST_GS_BASE, __readmsr(IA32_GS_BASE));
+	vmwrite(VMCS_GUEST_LDTR_BASE, util->segment_base(gdtr, get_ldtr()));
+	vmwrite(VMCS_GUEST_TR_BASE, util->segment_base(gdtr, get_tr()));
+	vmwrite(VMCS_GUEST_GDTR_BASE, gdtr.base_address);
+	vmwrite(VMCS_GUEST_IDTR_BASE, idtr.base_address);
 
-	__vmx_vmwrite(VMCS_GUEST_SYSENTER_CS, __readmsr(IA32_SYSENTER_CS));
-	__vmx_vmwrite(VMCS_GUEST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
-	__vmx_vmwrite(VMCS_GUEST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
+	vmwrite(VMCS_GUEST_SYSENTER_CS, __readmsr(IA32_SYSENTER_CS));
+	vmwrite(VMCS_GUEST_SYSENTER_ESP, __readmsr(IA32_SYSENTER_ESP));
+	vmwrite(VMCS_GUEST_SYSENTER_EIP, __readmsr(IA32_SYSENTER_EIP));
 
-	__vmx_vmwrite(VMCS_GUEST_DEBUGCTL, __readmsr(IA32_DEBUGCTL));
-	__vmx_vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, MAXULONG64);
+	vmwrite(VMCS_GUEST_DEBUGCTL, __readmsr(IA32_DEBUGCTL));
+	vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, MAXULONG64);
 
-	__vmx_vmwrite(VMCS_CTRL_PIN_BASED_VM_EXECUTION_CONTROLS, pin_based_ctrl.flags);
-	__vmx_vmwrite(VMCS_CTRL_PROCESSOR_BASED_VM_EXECUTION_CONTROLS, cpu_primary_ctrls.flags);
-	__vmx_vmwrite(VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS, cpu_secondary_ctrls.flags);
-	__vmx_vmwrite(VMCS_CTRL_VMENTRY_CONTROLS, entry_ctls.flags);
-	__vmx_vmwrite(0x0000400C, exit_ctrls.flags);    
+	vmwrite(VMCS_CTRL_PIN_BASED_VM_EXECUTION_CONTROLS, pin_based_ctrl.flags);
+	vmwrite(VMCS_CTRL_PROCESSOR_BASED_VM_EXECUTION_CONTROLS, cpu_primary_ctrls.flags);
+	vmwrite(VMCS_CTRL_SECONDARY_PROCESSOR_BASED_VM_EXECUTION_CONTROLS, cpu_secondary_ctrls.flags);
+	vmwrite(VMCS_CTRL_VMENTRY_CONTROLS, entry_ctls.flags);
+	vmwrite(0x0000400C, exit_ctrls.flags);    
 
 	DbgPrint("done configuring vmcs, executing vmlaunch");
-	vmlaunch_asm();
+
+	auto vmlaunch_stat = vmlaunch_asm();
+	if (!vmlaunch_stat)
+	{
+		DbgPrint("vmlaunch failed with code: 0x%d", vmlaunch_stat);
+		return false;
+	}
+
 	return true;
 }
